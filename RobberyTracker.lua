@@ -1,5 +1,8 @@
 repeat task.wait() until game:IsLoaded()
 
+-- FIREBASE CONFIGURATION
+local FIREBASE_BASE_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/robberies/"
+
 local Webhooks = {
     ["Rising City Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
     ["Crater City Bank"] = "https://discord.com/api/webhooks/1464671245822857468/ycNERxxt8CiLcwnLZEJOpx_9veXGaKCHPtFXgc7EabBn506Hs8Boh2hdeJW7cycAX3TA",
@@ -14,8 +17,8 @@ local Webhooks = {
 }
 
 -- CONFIGURATION
-local HOP_DELAY = 8 
-local MAX_PLAYERS = 22 -- Lowered to ensure you always have a spot
+local HOP_DELAY = 10 
+local MAX_PLAYERS = 22 
 
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
@@ -43,36 +46,89 @@ local function formatGameTime(decimalTime)
     return string.format("%d:%02d %s", hours, minutes, period)
 end
 
+-- CLEANUP FUNCTION: Removes data older than 5 minutes from Firebase
+local function cleanupDatabase()
+    local success, response = pcall(function()
+        return (http_request or request)({
+            Url = FIREBASE_BASE_URL .. ".json",
+            Method = "GET"
+        })
+    end)
+
+    if success and response.Body then
+        local data = HttpService:JSONDecode(response.Body)
+        if not data then return end
+        
+        local currentTime = os.time()
+        for key, info in pairs(data) do
+            if info.lastUpdated and (currentTime - info.lastUpdated > 300) then
+                pcall(function()
+                    (http_request or request)({
+                        Url = FIREBASE_BASE_URL .. key .. ".json",
+                        Method = "DELETE"
+                    })
+                end)
+            end
+        end
+    end
+end
+
+-- SEND ALERT: Sends to both Discord and Firebase
 local function sendAlert(name, status, isSpecial)
     if alreadyNotified[name] then return end 
     alreadyNotified[name] = true 
 
     local lookupName = name:find("Airdrop") and "Airdrop" or name
     local targetUrl = Webhooks[lookupName]
-    if not targetUrl or targetUrl == "" then return end
-
     local currentIcon = Icons[name] or "🚨"
-    local embedColor = isSpecial and 3447003 or (status == "Open" and 65280 or (status == "Being Robbed" and 16744192 or 16777215))
     local displayTime = formatGameTime(Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0)
 
-    local payload = {
-        ["content"] = (isSpecial and "⏳" or currentIcon) .. " **" .. name:upper() .. "**",
-        ["embeds"] = {{
-            ["title"] = currentIcon .. " " .. name .. " " .. status .. "!",
-            ["description"] = "[Click here to join directly](https://www.muffinhook.site/snipers/?jobid=" .. game.JobId .. ")",
-            ["color"] = embedColor,
-            ["fields"] = {
-                {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
-                {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
-                {["name"] = "Game Time", ["value"] = "**" .. displayTime .. "**", ["inline"] = true}
-            }   
-        }}
-    }
+    -- 1. SEND TO DISCORD
+    if targetUrl and targetUrl ~= "" then
+        local embedColor = isSpecial and 3447003 or (status == "Open" and 65280 or (status == "Being Robbed" and 16744192 or 16777215))
+        local payload = {
+            ["content"] = (isSpecial and "⏳" or currentIcon) .. " **" .. name:upper() .. "**",
+            ["embeds"] = {{
+                ["title"] = currentIcon .. " " .. name .. " " .. status .. "!",
+                ["description"] = "[Click here to join directly](https://www.muffinhook.site/snipers/?jobid=" .. game.JobId .. ")",
+                ["color"] = embedColor,
+                ["fields"] = {
+                    {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
+                    {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
+                    {["name"] = "Game Time", ["value"] = "**" .. displayTime .. "**", ["inline"] = true}
+                }   
+            }}
+        }
+        pcall(function() 
+            (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) 
+        end)
+    end
 
-    pcall(function() 
-        (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) 
+    -- 2. SEND TO FIREBASE (Your Website)
+    local dbPath = FIREBASE_BASE_URL .. name:gsub(" ", "_") .. ".json"
+    pcall(function()
+        (http_request or request)({
+            Url = dbPath,
+            Method = "PUT",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                name = name,
+                status = status,
+                jobId = game.JobId,
+                players = #Players:GetPlayers() .. "/30",
+                lastUpdated = os.time()
+            })
+        })
     end)
 end
+
+-- BACKGROUND CLEANUP LOOP (Runs every 5 minutes)
+task.spawn(function()
+    while true do
+        cleanupDatabase()
+        task.wait(300)
+    end
+end)
 
 -- DETECTION LOOP
 task.spawn(function()
@@ -120,7 +176,7 @@ task.spawn(function()
     end
 end)
 
--- SAFE HIGH-POP SERVER HOPPER
+-- SERVER HOPPER
 local function ServerHop()
     task.wait(HOP_DELAY)
     while true do
@@ -132,24 +188,19 @@ local function ServerHop()
             local data = HttpService:JSONDecode(response)
             if data and data.data then
                 local possibleServers = {}
-                
                 for _, s in pairs(data.data) do
-                    -- Filter out servers that are too full or already visited
                     if s.id ~= game.JobId and s.playing <= MAX_PLAYERS and not _G.ServerBlacklist[s.id] then
                         table.insert(possibleServers, s)
                     end
                 end
 
                 if #possibleServers > 0 then
-                    -- Pick a target from the biggest available (spread out among top 5)
                     local target = possibleServers[math.random(1, math.min(5, #possibleServers))]
-                    
                     pcall(function()
                         _G.ServerBlacklist[target.id] = true 
                         TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, LocalPlayer)
                     end)
                 else
-                    -- If no big servers are left, clear blacklist to restart the cycle
                     _G.ServerBlacklist = {}
                 end
             end
@@ -158,5 +209,5 @@ local function ServerHop()
     end
 end
 
-print("✅ Stable Sniper Active: Max Players 22")
+print("✅ Live Sniper + Website Sync Active")
 ServerHop()
