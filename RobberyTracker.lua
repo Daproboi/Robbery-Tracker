@@ -17,7 +17,7 @@ local Webhooks = {
 }
 
 -- CONFIGURATION
-local HOP_DELAY = 10 
+local HOP_DELAY = 20 
 local MAX_PLAYERS = 22 
 
 local HttpService = game:GetService("HttpService")
