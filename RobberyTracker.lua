@@ -14,7 +14,7 @@ local Webhooks = {
 }
 
 -- CONFIGURATION
-local HOP_DELAY = math.random(20, 45) 
+local HOP_DELAY = 5 
 local MAX_PLAYERS = 22 -- Lowered to ensure you always have a spot
 
 local HttpService = game:GetService("HttpService")
