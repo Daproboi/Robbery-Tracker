@@ -104,8 +104,10 @@ local function sendAlert(name, status, isSpecial)
         end)
     end
 
-    -- 2. SEND TO FIREBASE (Your Website)
-    local dbPath = FIREBASE_BASE_URL .. name:gsub(" ", "_") .. ".json"
+    -- 2. SEND TO FIREBASE (UNIQUE PER SERVER)
+    -- Changed: Using game.JobId so multiple servers don't overwrite each other
+    local dbPath = FIREBASE_BASE_URL .. game.JobId .. ".json"
+    
     pcall(function()
         (http_request or request)({
             Url = dbPath,
@@ -115,7 +117,7 @@ local function sendAlert(name, status, isSpecial)
                 name = name,
                 status = status,
                 jobId = game.JobId,
-                players = #Players:GetPlayers() .. "/30",
+                players = #Players:GetPlayers(), -- Sending just the number for cleaner website display
                 lastUpdated = os.time()
             })
         })
@@ -209,5 +211,5 @@ local function ServerHop()
     end
 end
 
-print("✅ Live Sniper + Website Sync Active")
+print("✅ Live Sniper + Website Sync (Multi-Server) Active")
 ServerHop()
