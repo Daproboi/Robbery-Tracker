@@ -90,7 +90,7 @@ local function sendAlert(name, status, isSpecial)
             ["content"] = (isSpecial and "⏳" or currentIcon) .. " **" .. name:upper() .. "**",
             ["embeds"] = {{
                 ["title"] = currentIcon .. " " .. name .. " " .. status .. "!",
-                ["description"] = "[Click here to join directly](https://daproboi.github.io/Robbery-Tracker-Website/?jobid=" .. game.JobId .. ")",
+                ["description"] = "[Click here to join directly](https://www.muffinhook.site/snipers?jobid=" .. game.JobId .. ")",
                 ["color"] = embedColor,
                 ["fields"] = {
                     {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
