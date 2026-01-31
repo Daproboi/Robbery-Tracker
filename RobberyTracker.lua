@@ -6,7 +6,7 @@ local MY_WEBSITE_URL = "https://daproboi.github.io/Robbery-Tracker-Website/"
 
 local Webhooks = {
     ["Rising City Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
-    ["Crater City Bank"] = "https://discord.com/api/webhooks/1464671245822857468/ycNERxxt8CiLcwnLZEJOpx_9veXGaKCHPtFXgc7EabBn506Hs8Boh2hdeJW7cycAX3TA",
+    ["Crater City Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH", -- Linked to Rising Bank
     ["Jewelry Store"] = "https://discord.com/api/webhooks/1464670195896549457/-g95aDBEu9u3pn2M9ow7ChXxRTNyj847ahfWMLdXbnnYVNOVLOiUV5IvfVhWETjDKKFE",
     ["Museum"] = "https://discord.com/api/webhooks/1464671504435515454/G5DlXxy_u9IofQ_iyfCKlQGB_Q1SqG18Gi1XJlZppB_e4eqwXePUmbS8palWk1utsAgT",
     ["Casino"] = "https://discord.com/api/webhooks/1464671652343316542/4rbjQ-ckC-N-lR29ScuXO-mas98ZH_6R-hBlv_mVhSAS0nZrvocxMM2LyptaxXzL5PxT",
@@ -82,7 +82,6 @@ local function sendAlert(name, status, isSpecial)
     local currentIcon = Icons[name] or "🚨"
     local displayTime = formatGameTime(Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0)
 
-    -- 1. SEND TO DISCORD
     if targetUrl and targetUrl ~= "" then
         local embedColor = isSpecial and 3447003 or (status == "Open" and 65280 or (status == "Being Robbed" and 16744192 or 16777215))
         local payload = {
@@ -103,22 +102,42 @@ local function sendAlert(name, status, isSpecial)
         end)
     end
 
-    -- 2. SEND TO FIREBASE (Updated to use PATCH to prevent overwriting)
     local dbPath = FIREBASE_BASE_URL .. game.JobId .. ".json"
-    
     pcall(function()
         (http_request or request)({
-            Url = dbPath,
-            Method = "PATCH",
-            Headers = {["Content-Type"] = "application/json"},
+            Url = dbPath, Method = "PATCH", Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
-                name = name,
-                status = status,
-                jobId = game.JobId,
-                players = #Players:GetPlayers(),
-                lastUpdated = os.time()
+                name = name, status = status, jobId = game.JobId, players = #Players:GetPlayers(), lastUpdated = os.time()
             })
         })
+    end)
+end
+
+local function sendDoubleBankAlert(s1, s2)
+    if alreadyNotified["DoubleBank"] then return end
+    alreadyNotified["DoubleBank"] = true
+    alreadyNotified["Rising City Bank"] = true
+    alreadyNotified["Crater City Bank"] = true
+
+    local targetUrl = Webhooks["Rising City Bank"]
+    local displayTime = formatGameTime(Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0)
+
+    local payload = {
+        ["content"] = "🚨💰💰 **DOUBLE BANK ALERT**",
+        ["embeds"] = {{
+            ["title"] = "Both Banks are active!",
+            ["description"] = "🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")",
+            ["color"] = 16776960,
+            ["fields"] = {
+                {["name"] = "Rising City Bank", ["value"] = "**" .. s1 .. "**", ["inline"] = true},
+                {["name"] = "Crater City Bank", ["value"] = "**" .. s2 .. "**", ["inline"] = true},
+                {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = false},
+                {["name"] = "Game Time", ["value"] = "**" .. displayTime .. "**", ["inline"] = true}
+            }
+        }}
+    }
+    pcall(function() 
+        (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) 
     end)
 end
 
@@ -141,37 +160,45 @@ task.spawn(function()
         
         task.wait(0.2) 
 
-        local mansionObj = Workspace:FindFirstChild("MansionRobbery")
-        if mansionObj and mansionObj:GetAttribute("RobberyStatus") == 1 then sendAlert("Mansion", "Open") end
-        
         local pGui = LocalPlayer:FindFirstChild("PlayerGui")
         if pGui then
+            local function checkStatus(labelName)
+                local label = pGui:FindFirstChild(labelName, true)
+                if not label then return nil end
+                local color = label.ImageColor3
+                if color.G > 0.7 then
+                    if (color.R > 0.15 or color.B > 0.15) then return "Being Robbed" end
+                    return "Open"
+                end
+                return nil
+            end
+
+            -- Double Bank Check First
+            local s1 = checkStatus("label_Bank")
+            local s2 = checkStatus("label_Bank2")
+            if s1 and s2 then
+                sendDoubleBankAlert(s1, s2)
+            end
+
+            -- Standard Checks
             local UIs = {
                 ["Jewelry Store"]="label_Jewelry", ["PowerPlant"]="label_PowerPlant", 
                 ["Museum"]="label_Museum", ["Rising City Bank"]="label_Bank", 
                 ["Crater City Bank"]="label_Bank2", ["Casino"]="label_Casino", 
                 ["Cargo Train"]="label_TrainCargo", ["Tomb"]="label_Tomb"
             }
-            for pretty, labelName in pairs(UIs) do
-                local label = pGui:FindFirstChild(labelName, true)
-                if label then
-                    local isBlinking = false
-                    for i = 1, 5 do
-                        local color = label.ImageColor3
-                        if color.G > 0.7 and (color.R > 0.15 or color.B > 0.15) then
-                            isBlinking = true; break
-                        end
-                        task.wait(0.04)
-                    end
 
-                    if isBlinking then
-                        if pretty ~= "PowerPlant" then sendAlert(pretty, "Being Robbed") end
-                    elseif label.ImageColor3.G > 0.7 then
-                        sendAlert(pretty, "Open")
-                    end
+            for pretty, labelName in pairs(UIs) do
+                local status = checkStatus(labelName)
+                if status and not (pretty == "PowerPlant" and status == "Being Robbed") then
+                    sendAlert(pretty, status)
                 end
             end
         end
+
+        local mansionObj = Workspace:FindFirstChild("MansionRobbery")
+        if mansionObj and mansionObj:GetAttribute("RobberyStatus") == 1 then sendAlert("Mansion", "Open") end
+        
         task.wait(0.3)
     end
 end)
@@ -209,5 +236,5 @@ local function ServerHop()
     end
 end
 
-print("✅ Live Sniper + GitHub Website Sync Active")
+print("✅ Single-Channel Bank Logic Active")
 ServerHop()
