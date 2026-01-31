@@ -89,7 +89,7 @@ local function sendAlert(name, status, isSpecial)
             ["content"] = (isSpecial and "⏳" or currentIcon) .. " **" .. name:upper() .. "**",
             ["embeds"] = {{
                 ["title"] = currentIcon .. " " .. name .. " " .. status .. "!",
-                ["description"] = "🚀 [View on Robbery Tracker](" .. MY_WEBSITE_URL .. ")",
+                ["description"] = "🚀 [View on Robbery Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")",
                 ["color"] = embedColor,
                 ["fields"] = {
                     {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
