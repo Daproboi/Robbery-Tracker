@@ -2,6 +2,7 @@ repeat task.wait() until game:IsLoaded()
 
 -- FIREBASE CONFIGURATION
 local FIREBASE_BASE_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/robberies/"
+local MY_WEBSITE_URL = "https://daproboi.github.io/Robbery-Tracker-Website/"
 
 local Webhooks = {
     ["Rising City Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
@@ -46,7 +47,6 @@ local function formatGameTime(decimalTime)
     return string.format("%d:%02d %s", hours, minutes, period)
 end
 
--- CLEANUP FUNCTION: Removes data older than 5 minutes from Firebase
 local function cleanupDatabase()
     local success, response = pcall(function()
         return (http_request or request)({
@@ -73,7 +73,6 @@ local function cleanupDatabase()
     end
 end
 
--- SEND ALERT: Sends to both Discord and Firebase
 local function sendAlert(name, status, isSpecial)
     if alreadyNotified[name] then return end 
     alreadyNotified[name] = true 
@@ -90,7 +89,7 @@ local function sendAlert(name, status, isSpecial)
             ["content"] = (isSpecial and "⏳" or currentIcon) .. " **" .. name:upper() .. "**",
             ["embeds"] = {{
                 ["title"] = currentIcon .. " " .. name .. " " .. status .. "!",
-                ["description"] = "[Click here to join directly](https://www.muffinhook.site/snipers?jobid=" .. game.JobId .. ")",
+                ["description"] = "🚀 [View on Robbery Tracker](" .. MY_WEBSITE_URL .. ")",
                 ["color"] = embedColor,
                 ["fields"] = {
                     {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
@@ -104,27 +103,26 @@ local function sendAlert(name, status, isSpecial)
         end)
     end
 
-    -- 2. SEND TO FIREBASE (UNIQUE PER SERVER)
-    -- Changed: Using game.JobId so multiple servers don't overwrite each other
+    -- 2. SEND TO FIREBASE (Updated to use PATCH to prevent overwriting)
     local dbPath = FIREBASE_BASE_URL .. game.JobId .. ".json"
     
     pcall(function()
         (http_request or request)({
             Url = dbPath,
-            Method = "PUT",
+            Method = "PATCH",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({
                 name = name,
                 status = status,
                 jobId = game.JobId,
-                players = #Players:GetPlayers(), -- Sending just the number for cleaner website display
+                players = #Players:GetPlayers(),
                 lastUpdated = os.time()
             })
         })
     end)
 end
 
--- BACKGROUND CLEANUP LOOP (Runs every 5 minutes)
+-- CLEANUP LOOP
 task.spawn(function()
     while true do
         cleanupDatabase()
@@ -211,5 +209,5 @@ local function ServerHop()
     end
 end
 
-print("✅ Live Sniper + Website Sync (Multi-Server) Active")
+print("✅ Live Sniper + GitHub Website Sync Active")
 ServerHop()
