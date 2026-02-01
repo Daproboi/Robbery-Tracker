@@ -1,12 +1,15 @@
 repeat task.wait() until game:IsLoaded()
 
--- FIREBASE CONFIGURATION
+-- [[ CONFIGURATION ]]
 local FIREBASE_BASE_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/robberies/"
 local MY_WEBSITE_URL = "https://daproboi.github.io/Robbery-Tracker-Website/"
+local HOP_DELAY = 8
+local MAX_PLAYERS = 22 
 
+-- [[ WEBHOOK LINKS ]]
 local Webhooks = {
-    ["Rising City Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
-    ["Crater City Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH", -- Linked to Rising Bank
+    ["Rising Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
+    ["Crater Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
     ["Jewelry Store"] = "https://discord.com/api/webhooks/1464670195896549457/-g95aDBEu9u3pn2M9ow7ChXxRTNyj847ahfWMLdXbnnYVNOVLOiUV5IvfVhWETjDKKFE",
     ["Museum"] = "https://discord.com/api/webhooks/1464671504435515454/G5DlXxy_u9IofQ_iyfCKlQGB_Q1SqG18Gi1XJlZppB_e4eqwXePUmbS8palWk1utsAgT",
     ["Casino"] = "https://discord.com/api/webhooks/1464671652343316542/4rbjQ-ckC-N-lR29ScuXO-mas98ZH_6R-hBlv_mVhSAS0nZrvocxMM2LyptaxXzL5PxT",
@@ -14,227 +17,174 @@ local Webhooks = {
     ["Mansion"] = "https://discord.com/api/webhooks/1464672060159561885/dIXoAqZzJal-MhsM2KgmKTOvvTMI50IT4bv8elLSrfPlSE1ovHQrRm3xk4MbInTqf0BV",
     ["Tomb"] = "https://discord.com/api/webhooks/1464672202933796987/091LsMHRz2GUL7ymQ_RDU0jV4Xi87k6YnDT0heXmpAUMh5g0Su15ZCgbdObZRxucmX3b",
     ["Airdrop"] = "https://discord.com/api/webhooks/1464672331291955305/Kc_1Q8qxIIb8qVvn_8bmBj1vjjYa9IpNX2ZWXdLnKXoN4ibxxIlwyeF0GPs3MI0jotwD",
-    ["PowerPlant"] = "https://discord.com/api/webhooks/1464711922191695913/sZSMxS9pE58uwCvidx3MkEoTzJ73O3c0AatUSG8WsVrfxYkB44bm42zNHXxvJ4s9oYS9"
+    ["Power Plant"] = "https://discord.com/api/webhooks/1464711922191695913/sZSMxS9pE58uwCvidx3MkEoTzJ73O3c0AatUSG8WsVrfxYkB44bm42zNHXxvJ4s9oYS9",
+	["Bank Truck"] = "https://discord.com/api/webhooks/1467485604777558194/vQ49xOndXG2_FQd-MEq5YhVwd_ERPvS0RIwe0TcVJP9Cg5_2LO8IX5Qvyqp69KarLAoG"
 }
 
--- CONFIGURATION
-local HOP_DELAY = 20 
-local MAX_PLAYERS = 22 
+-- [[ MAPPINGS ]]
+local ROBBERY_NAMES = {
+    ["1"] = "Rising Bank", ["2"] = "Crater Bank", ["3"] = "Jewelry Store",
+    ["4"] = "Museum", ["5"] = "Power Plant", ["7"] = "Cargo Train", ["12"] = "Bank Truck",
+    ["14"] = "Tomb", ["15"] = "Casino", ["16"] = "Mansion"
+}
+local STATUS_NAMES = { [1] = "Open", [2] = "In Robbery", [3] = "Closed" }
+local Icons = {
+    ["Jewelry Store"]="💎", ["Power Plant"]="⚡", ["Museum"]="🏛️", ["Rising Bank"]="💰", 
+    ["Crater Bank"]="🏦", ["Casino"]="🎰", ["Mansion"]="🏰", ["Tomb"]="⚰️", 
+    ["Cargo Train"]="🚂", ["Airdrop"]="📦", ["Bank Truck"] = "🚛"
+}
 
+-- [[ SERVICES ]]
+local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
-local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
+local alreadyNotified = {}
 if not _G.ServerBlacklist then _G.ServerBlacklist = {} end
-math.randomseed(tick() + LocalPlayer.UserId)
 
-local alreadyNotified = {} 
-local Icons = {
-    ["Jewelry Store"]="💎", ["PowerPlant"]="⚡", ["Museum"]="🏛️", ["Rising City Bank"]="💰", 
-    ["Crater City Bank"]="🏦", ["Casino"]="🎰", ["Mansion"]="🏰", ["Tomb"]="⚰️", 
-    ["Cargo Train"]="🚂", ["Red Airdrop"]="🎁", ["Blue Airdrop"]="📦", ["Brown Airdrop"]="💼"
-}
-
-local function formatGameTime(decimalTime)
+-- [[ HELPER: FORMAT GAME TIME ]]
+local function getGameTime()
+    local decimalTime = Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0
     local hours = math.floor(decimalTime)
     local minutes = math.floor((decimalTime - hours) * 60)
-    local period = "AM"
-    if hours >= 12 then period = "PM" if hours > 12 then hours = hours - 12 end
-    elseif hours == 0 then hours = 12 end
+    local period = (hours >= 12) and "PM" or "AM"
+    hours = (hours > 12) and hours - 12 or (hours == 0 and 12 or hours)
     return string.format("%d:%02d %s", hours, minutes, period)
 end
 
-local function cleanupDatabase()
-    local success, response = pcall(function()
-        return (http_request or request)({
-            Url = FIREBASE_BASE_URL .. ".json",
-            Method = "GET"
-        })
-    end)
+-- [[ ALERT LOGIC ]]
+local function sendAlert(name, status, isDouble, customRegion, extraDetails)
+    local alertKey = isDouble and "DoubleBank" or (name .. status .. (customRegion or ""))
+    if alreadyNotified[alertKey] then return end
+    alreadyNotified[alertKey] = true
 
-    if success and response.Body then
-        local data = HttpService:JSONDecode(response.Body)
-        if not data then return end
-        
-        local currentTime = os.time()
-        for key, info in pairs(data) do
-            if info.lastUpdated and (currentTime - info.lastUpdated > 300) then
-                pcall(function()
-                    (http_request or request)({
-                        Url = FIREBASE_BASE_URL .. key .. ".json",
-                        Method = "DELETE"
-                    })
-                end)
-            end
-        end
-    end
-end
-
-local function sendAlert(name, status, isSpecial)
-    if alreadyNotified[name] then return end 
-    alreadyNotified[name] = true 
-
-    local lookupName = name:find("Airdrop") and "Airdrop" or name
-    local targetUrl = Webhooks[lookupName]
+    local targetUrl = Webhooks[name] or Webhooks["Airdrop"]
     local currentIcon = Icons[name] or "🚨"
-    local displayTime = formatGameTime(Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0)
+    local timeStr = getGameTime()
+    
+    local fields = {
+        {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
+        {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
+        {["name"] = "Game Time", ["value"] = "**" .. timeStr .. "**", ["inline"] = false}
+    }
 
-    if targetUrl and targetUrl ~= "" then
-        local embedColor = isSpecial and 3447003 or (status == "Open" and 65280 or (status == "Being Robbed" and 16744192 or 16777215))
-        local payload = {
-            ["content"] = (isSpecial and "⏳" or currentIcon) .. " **" .. name:upper() .. "**",
-            ["embeds"] = {{
-                ["title"] = currentIcon .. " " .. name .. " " .. status .. "!",
-                ["description"] = "🚀 [View on Robbery Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")",
-                ["color"] = embedColor,
-                ["fields"] = {
-                    {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
-                    {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
-                    {["name"] = "Game Time", ["value"] = "**" .. displayTime .. "**", ["inline"] = true}
-                }   
-            }}
-        }
-        pcall(function() 
-            (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) 
-        end)
+    if extraDetails then
+        for _, detail in pairs(extraDetails) do table.insert(fields, detail) end
     end
-
-    local dbPath = FIREBASE_BASE_URL .. game.JobId .. ".json"
-    pcall(function()
-        (http_request or request)({
-            Url = dbPath, Method = "PATCH", Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({
-                name = name, status = status, jobId = game.JobId, players = #Players:GetPlayers(), lastUpdated = os.time()
-            })
-        })
-    end)
-end
-
-local function sendDoubleBankAlert(s1, s2)
-    if alreadyNotified["DoubleBank"] then return end
-    alreadyNotified["DoubleBank"] = true
-    alreadyNotified["Rising City Bank"] = true
-    alreadyNotified["Crater City Bank"] = true
-
-    local targetUrl = Webhooks["Rising City Bank"]
-    local displayTime = formatGameTime(Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0)
 
     local payload = {
-        ["content"] = "🚨💰💰 **DOUBLE BANK ALERT**",
+        ["content"] = isDouble and "🚨 💰💰 **DOUBLE BANK ALERT**" or (currentIcon .. " **" .. (customRegion or name):upper() .. "**"),
         ["embeds"] = {{
-            ["title"] = "Both Banks are active!",
+            ["title"] = isDouble and "Both Banks are Active!" or (currentIcon .. " " .. (customRegion or name) .. " is " .. status .. "!"),
             ["description"] = "🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")",
-            ["color"] = 16776960,
-            ["fields"] = {
-                {["name"] = "Rising City Bank", ["value"] = "**" .. s1 .. "**", ["inline"] = true},
-                {["name"] = "Crater City Bank", ["value"] = "**" .. s2 .. "**", ["inline"] = true},
-                {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = false},
-                {["name"] = "Game Time", ["value"] = "**" .. displayTime .. "**", ["inline"] = true}
-            }
+            ["color"] = isDouble and 16776960 or (status == "Open" and 65280 or 16744192),
+            ["fields"] = fields
         }}
     }
-    pcall(function() 
-        (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) 
-    end)
+
+    pcall(function() (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) end)
 end
 
--- CLEANUP LOOP
+-- [[ ROBBERY DETECTION ]]
 task.spawn(function()
+    local RobberyState = ReplicatedStorage:WaitForChild("RobberyState")
     while true do
-        cleanupDatabase()
-        task.wait(300)
-    end
-end)
+        local rBankStatus = STATUS_NAMES[RobberyState["1"].Value]
+        local cBankStatus = STATUS_NAMES[RobberyState["2"].Value]
 
--- DETECTION LOOP
-task.spawn(function()
-    while true do
-        pcall(function()
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game)
-            task.wait(0.05)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
-        end)
-        
-        task.wait(0.2) 
+        if (rBankStatus == "Open" or rBankStatus == "In Robbery") and (cBankStatus == "Open" or cBankStatus == "In Robbery") then
+            sendAlert("Rising Bank", "Double Bank Active", true)
+        end
 
-        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if pGui then
-            local function checkStatus(labelName)
-                local label = pGui:FindFirstChild(labelName, true)
-                if not label then return nil end
-                local color = label.ImageColor3
-                if color.G > 0.7 then
-                    if (color.R > 0.15 or color.B > 0.15) then return "Being Robbed" end
-                    return "Open"
-                end
-                return nil
-            end
-
-            -- Double Bank Check First
-            local s1 = checkStatus("label_Bank")
-            local s2 = checkStatus("label_Bank2")
-            if s1 and s2 then
-                sendDoubleBankAlert(s1, s2)
-            end
-
-            -- Standard Checks
-            local UIs = {
-                ["Jewelry Store"]="label_Jewelry", ["PowerPlant"]="label_PowerPlant", 
-                ["Museum"]="label_Museum", ["Rising City Bank"]="label_Bank", 
-                ["Crater City Bank"]="label_Bank2", ["Casino"]="label_Casino", 
-                ["Cargo Train"]="label_TrainCargo", ["Tomb"]="label_Tomb"
-            }
-
-            for pretty, labelName in pairs(UIs) do
-                local status = checkStatus(labelName)
-                if status and not (pretty == "PowerPlant" and status == "Being Robbed") then
-                    sendAlert(pretty, status)
+        for id, name in pairs(ROBBERY_NAMES) do
+            local stateVal = RobberyState:FindFirstChild(id)
+            if stateVal then
+                local status = STATUS_NAMES[stateVal.Value]
+                if name == "Power Plant" or name == "Mansion" then
+                    if status == "Open" then sendAlert(name, status, false) end
+                else
+                    if status == "Open" or status == "In Robbery" then sendAlert(name, status, false) end
                 end
             end
         end
-
-        local mansionObj = Workspace:FindFirstChild("MansionRobbery")
-        if mansionObj and mansionObj:GetAttribute("RobberyStatus") == 1 then sendAlert("Mansion", "Open") end
-        
-        task.wait(0.3)
+        task.wait(1)
     end
 end)
 
--- SERVER HOPPER
+-- [[ TWEEN AIRDROP SCANNER ]]
+task.spawn(function()
+    local TweenService = game:GetService("TweenService")
+    local Camera = workspace.CurrentCamera
+    local SCAN_POINTS = {
+        Vector3.new(1360, 150, 4363), -- Dunes Checkpoint
+        Vector3.new(-278, 150, 1530)   -- Cactus Valley Checkpoint
+    }
+    local alerted = {}
+
+    while true do
+        for _, point in pairs(SCAN_POINTS) do
+            -- Smooth transition to scan area
+            local tween = TweenService:Create(Camera, TweenInfo.new(2), {CFrame = CFrame.new(point, point - Vector3.new(0, 1, 0))})
+            tween:Play()
+            task.wait(3) -- Give time for objects to render (StreamingEnabled)
+            
+            game:GetService("Players").LocalPlayer:RequestStreamAroundAsync(Camera.CFrame.Position, 500)
+            
+            for _, obj in pairs(Workspace:GetChildren()) do
+                if (obj.Name:find("Drop") or obj:FindFirstChild("Briefcase")) and not alreadyNotified[obj] then
+                    alreadyNotified[obj] = true
+                    
+                    -- Color Detection Logic
+                    local dropColor = "Unknown"
+                    local wall = obj:FindFirstChild("Walls") and obj.Walls:FindFirstChild("Wall")
+                    if wall then
+                        local c = wall.Color
+                        if math.floor(c.R*255) == 49 and math.floor(c.G*255) == 98 then dropColor = "🔵 Blue (Storm Blue)"
+                        elseif math.floor(c.R*255) == 148 and math.floor(c.G*255) == 96 then dropColor = "🟤 Brown (Dark Orange)"
+                        elseif math.floor(c.R*255) == 147 and math.floor(c.G*255) == 44 then dropColor = "🔴 Red (Dark Red)" end
+                    end
+
+                    -- Timer/Countdown Logic
+                    local timerStr = "Not Started"
+                    local cd = obj:FindFirstChild("Countdown")
+                    if cd and cd:IsA("TextLabel") or cd:IsA("StringValue") then timerStr = tostring(cd.Value or cd.Text) end
+
+                    local region = (obj:GetPivot().Position.Z > 3000) and "🏜️ Dunes" or "🌵 Cactus Valley"
+                    sendAlert("Airdrop", "Landed", false, region, {
+                        {["name"] = "Drop Color", ["value"] = "**" .. dropColor .. "**", ["inline"] = true},
+                        {["name"] = "Time Remaining", ["value"] = "**" .. timerStr .. "**", ["inline"] = true}
+                    })
+                end
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+-- [[ SERVER HOPPER ]]
 local function ServerHop()
     task.wait(HOP_DELAY)
     while true do
-        local success, response = pcall(function() 
-            return game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100") 
-        end)
-        
+        local success, response = pcall(function() return game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100") end)
         if success then
             local data = HttpService:JSONDecode(response)
             if data and data.data then
-                local possibleServers = {}
                 for _, s in pairs(data.data) do
                     if s.id ~= game.JobId and s.playing <= MAX_PLAYERS and not _G.ServerBlacklist[s.id] then
-                        table.insert(possibleServers, s)
+                        _G.ServerBlacklist[s.id] = true 
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
                     end
-                end
-
-                if #possibleServers > 0 then
-                    local target = possibleServers[math.random(1, math.min(5, #possibleServers))]
-                    pcall(function()
-                        _G.ServerBlacklist[target.id] = true 
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, LocalPlayer)
-                    end)
-                else
-                    _G.ServerBlacklist = {}
                 end
             end
         end
-        task.wait(8) 
+        task.wait(5)
     end
 end
 
-print("✅ Single-Channel Bank Logic Active")
+print("✅ SCRIPT UPDATED: Airdrop Color & Timer Detection Integrated.")
 ServerHop()
