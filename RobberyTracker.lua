@@ -3,7 +3,7 @@ repeat task.wait() until game:IsLoaded()
 -- [[ CONFIGURATION ]]
 local FIREBASE_BASE_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/robberies/"
 local MY_WEBSITE_URL = "https://daproboi.github.io/Robbery-Tracker-Website/"
-local HOP_DELAY = 8
+local HOP_DELAY = 12
 local MAX_PLAYERS = 22 
 
 -- [[ WEBHOOK LINKS ]]
@@ -18,7 +18,7 @@ local Webhooks = {
     ["Tomb"] = "https://discord.com/api/webhooks/1464672202933796987/091LsMHRz2GUL7ymQ_RDU0jV4Xi87k6YnDT0heXmpAUMh5g0Su15ZCgbdObZRxucmX3b",
     ["Airdrop"] = "https://discord.com/api/webhooks/1464672331291955305/Kc_1Q8qxIIb8qVvn_8bmBj1vjjYa9IpNX2ZWXdLnKXoN4ibxxIlwyeF0GPs3MI0jotwD",
     ["Power Plant"] = "https://discord.com/api/webhooks/1464711922191695913/sZSMxS9pE58uwCvidx3MkEoTzJ73O3c0AatUSG8WsVrfxYkB44bm42zNHXxvJ4s9oYS9",
-	["Bank Truck"] = "https://discord.com/api/webhooks/1467485604777558194/vQ49xOndXG2_FQd-MEq5YhVwd_ERPvS0RIwe0TcVJP9Cg5_2LO8IX5Qvyqp69KarLAoG"
+    ["Bank Truck"] = "https://discord.com/api/webhooks/1467485604777558194/vQ49xOndXG2_FQd-MEq5YhVwd_ERPvS0RIwe0TcVJP9Cg5_2LO8IX5Qvyqp69KarLAoG"
 }
 
 -- [[ MAPPINGS ]]
@@ -31,7 +31,8 @@ local STATUS_NAMES = { [1] = "Open", [2] = "In Robbery", [3] = "Closed" }
 local Icons = {
     ["Jewelry Store"]="💎", ["Power Plant"]="⚡", ["Museum"]="🏛️", ["Rising Bank"]="💰", 
     ["Crater Bank"]="🏦", ["Casino"]="🎰", ["Mansion"]="🏰", ["Tomb"]="⚰️", 
-    ["Cargo Train"]="🚂", ["Airdrop"]="📦", ["Bank Truck"] = "🚛"
+    ["Cargo Train"]="🚂", ["Airdrop"]="📦", ["Bank Truck"] = "🚛",
+    ["Blue Airdrop"]="🔵", ["Brown Airdrop"]="🟤", ["Red Airdrop"]="🔴"
 }
 
 -- [[ SERVICES ]]
@@ -78,14 +79,19 @@ local function sendAlert(name, status, isDouble, customRegion, extraDetails)
     end
 
     local payload = {
-        ["content"] = isDouble and "🚨 💰💰 **DOUBLE BANK ALERT**" or (currentIcon .. " **" .. (customRegion or name):upper() .. "**"),
+        ["content"] = isDouble and "🚨 💰💰 **DOUBLE BANK ALERT**" or (currentIcon .. " **" .. name:upper() .. "**"),
         ["embeds"] = {{
-            ["title"] = isDouble and "Both Banks are Active!" or (currentIcon .. " " .. (customRegion or name) .. " is " .. status .. "!"),
-            ["description"] = "🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")",
-            ["color"] = isDouble and 16776960 or (status == "Open" and 65280 or 16744192),
+            ["title"] = isDouble and "Both Banks are Active!" or (currentIcon .. " " .. name .. " is " .. status .. "!"),
+            ["description"] = customRegion or ("🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")"),
+            ["color"] = isDouble and 16776960 or (status == "Open" and 65280 or (name:find("Airdrop") and 16711680 or 16744192)),
             ["fields"] = fields
         }}
     }
+    
+    -- If it's an airdrop, we want the join link to stay in description but formatted with the location text
+    if name:find("Airdrop") and customRegion then
+        payload.embeds[1].description = customRegion .. "\n\n🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")"
+    end
 
     pcall(function() (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) end)
 end
@@ -116,53 +122,59 @@ task.spawn(function()
     end
 end)
 
--- [[ TWEEN AIRDROP SCANNER ]]
+-- [[ DRONE AIRDROP SCANNER ]]
 task.spawn(function()
-    local TweenService = game:GetService("TweenService")
-    local Camera = workspace.CurrentCamera
-    local SCAN_POINTS = {
-        Vector3.new(1360, 150, 4363), -- Dunes Checkpoint
-        Vector3.new(-278, 150, 1530)   -- Cactus Valley Checkpoint
+    local HOVER_HEIGHT = 120 
+    local WIDE_RADIUS = 1200 
+    local MISSIONS = {
+        {Name = "Dunes", Start = Vector3.new(649, HOVER_HEIGHT, 740), End = Vector3.new(492, HOVER_HEIGHT, -905), HoverTime = 4.0},
+        {Name = "Cactus Valley", Start = Vector3.new(2103, HOVER_HEIGHT, -4081), End = Vector3.new(-1469, HOVER_HEIGHT, -4337), HoverTime = 6.0}
     }
-    local alerted = {}
 
-    while true do
-        for _, point in pairs(SCAN_POINTS) do
-            -- Smooth transition to scan area
-            local tween = TweenService:Create(Camera, TweenInfo.new(2), {CFrame = CFrame.new(point, point - Vector3.new(0, 1, 0))})
-            tween:Play()
-            task.wait(3) -- Give time for objects to render (StreamingEnabled)
-            
-            game:GetService("Players").LocalPlayer:RequestStreamAroundAsync(Camera.CFrame.Position, 500)
-            
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if (obj.Name:find("Drop") or obj:FindFirstChild("Briefcase")) and not alreadyNotified[obj] then
-                    alreadyNotified[obj] = true
-                    
-                    -- Color Detection Logic
-                    local dropColor = "Unknown"
-                    local wall = obj:FindFirstChild("Walls") and obj.Walls:FindFirstChild("Wall")
-                    if wall then
-                        local c = wall.Color
-                        if math.floor(c.R*255) == 49 and math.floor(c.G*255) == 98 then dropColor = "🔵 Blue (Storm Blue)"
-                        elseif math.floor(c.R*255) == 148 and math.floor(c.G*255) == 96 then dropColor = "🟤 Brown (Dark Orange)"
-                        elseif math.floor(c.R*255) == 147 and math.floor(c.G*255) == 44 then dropColor = "🔴 Red (Dark Red)" end
-                    end
-
-                    -- Timer/Countdown Logic
-                    local timerStr = "Not Started"
-                    local cd = obj:FindFirstChild("Countdown")
-                    if cd and cd:IsA("TextLabel") or cd:IsA("StringValue") then timerStr = tostring(cd.Value or cd.Text) end
-
-                    local region = (obj:GetPivot().Position.Z > 3000) and "🏜️ Dunes" or "🌵 Cactus Valley"
-                    sendAlert("Airdrop", "Landed", false, region, {
-                        {["name"] = "Drop Color", ["value"] = "**" .. dropColor .. "**", ["inline"] = true},
-                        {["name"] = "Time Remaining", ["value"] = "**" .. timerStr .. "**", ["inline"] = true}
-                    })
+    local function droneScan(region)
+        pcall(function()
+            local drop = Workspace:FindFirstChild("Drop")
+            if drop and not alreadyNotified[drop] then
+                local colorName = "Unknown"
+                local wall = drop:FindFirstChild("Walls") and drop.Walls:FindFirstChild("Wall")
+                if wall then
+                    local c = wall.Color
+                    local r, g, b = c.R*255, c.G*255, c.B*255
+                    if r > 40 and r < 60 and b > 140 then colorName = "Blue"
+                    elseif r > 140 and g > 90 and g < 110 then colorName = "Brown"
+                    elseif r > 140 and g < 60 and b < 60 then colorName = "Red" end
+                end
+                
+                local dropID = colorName .. " Airdrop"
+                sendAlert(dropID, "FOUND!", false, colorName .. " Airdrop found in " .. region .. "!")
+                alreadyNotified[drop] = true
+            elseif not drop then
+                for k, v in pairs(alreadyNotified) do
+                    if typeof(k) == "Instance" and k.Name == "Drop" then alreadyNotified[k] = nil end
                 end
             end
+        end)
+    end
+
+    if not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end
+    Camera.CameraType = Enum.CameraType.Scriptable
+
+    while true do
+        for _, mission in pairs(MISSIONS) do
+            Camera.CFrame = CFrame.new(mission.Start, mission.End)
+            LocalPlayer:RequestStreamAroundAsync(mission.Start, WIDE_RADIUS)
+            
+            local tweenGoal = {CFrame = CFrame.new(mission.End, mission.End + (mission.End - mission.Start).Unit)}
+            local tween = TweenService:Create(Camera, TweenInfo.new(mission.HoverTime, Enum.EasingStyle.Linear), tweenGoal)
+            tween:Play()
+            
+            local start = tick()
+            while (tick() - start) < mission.HoverTime do
+                LocalPlayer:RequestStreamAroundAsync(Camera.CFrame.Position, WIDE_RADIUS)
+                droneScan(mission.Name)
+                task.wait(0.2)
+            end
         end
-        task.wait(1)
     end
 end)
 
@@ -186,5 +198,5 @@ local function ServerHop()
     end
 end
 
-print("✅ SCRIPT UPDATED: Airdrop Color & Timer Detection Integrated.")
+print("✅ SCRIPT UPDATED: Fixed Airdrop Text Grammar and Titles.")
 ServerHop()
