@@ -59,10 +59,9 @@ local function getGameTime()
 end
 
 -----------------------------------------------------------
--- [[ NEW ALERT LOGIC ]]
+-- [[ UPDATED ALERT LOGIC (DISCORD + FIREBASE) ]]
 -----------------------------------------------------------
 local function sendAlert(name, status, isDouble, customRegion, extraDetails)
-    -- Unique key to prevent spam
     local alertKey = isDouble and "DoubleBank" or (name .. status .. (customRegion or ""))
     if alreadyNotified[alertKey] then return end
     alreadyNotified[alertKey] = true
@@ -71,18 +70,15 @@ local function sendAlert(name, status, isDouble, customRegion, extraDetails)
     local currentIcon = Icons[name] or "🚨"
     local timeStr = getGameTime()
     
-    -- Base fields included in every alert
+    -- 1. DISCORD PAYLOAD
     local fields = {
         {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
         {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
         {["name"] = "Game Time", ["value"] = "**" .. timeStr .. "**", ["inline"] = false}
     }
 
-    -- Append extra details (like Airdrop timers or specific bank statuses)
     if extraDetails then
-        for _, detail in pairs(extraDetails) do 
-            table.insert(fields, detail) 
-        end
+        for _, detail in pairs(extraDetails) do table.insert(fields, detail) end
     end
 
     local payload = {
@@ -90,25 +86,39 @@ local function sendAlert(name, status, isDouble, customRegion, extraDetails)
         ["embeds"] = {{
             ["title"] = isDouble and "Both Banks are Active!" or (currentIcon .. " " .. name .. " is " .. status .. "!"),
             ["description"] = customRegion or ("🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")"),
-            ["color"] = isDouble and 16776960 or (status == "Open" and 65280 or (name:find("Airdrop") and 16711680 or 16744192)),
+            ["color"] = isDouble and 16776960 or (status == "Open" and 65280 or 16744192),
             ["fields"] = fields
         }}
     }
-    
-    -- Special description formatting for Airdrops
-    if name:find("Airdrop") and customRegion then
-        payload.embeds[1].description = customRegion .. "\n\n🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")"
-    end
 
-    -- Send request
+    -- 2. FIREBASE PAYLOAD (For the Website)
+    local firebaseData = {
+        ["name"] = name,
+        ["status"] = status,
+        ["isDouble"] = isDouble or false,
+        ["jobId"] = game.JobId,
+        ["players"] = #Players:GetPlayers(),
+        ["lastUpdated"] = os.time()
+    }
+
     pcall(function()
         local req = (http_request or request or syn.request)
         if req then
+            -- Send to Discord
             req({
                 Url = targetUrl,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
                 Body = HttpService:JSONEncode(payload)
+            })
+
+            -- Update Website Database
+            local safeName = name:gsub(" ", "_") 
+            req({
+                Url = FIREBASE_BASE_URL .. safeName .. ".json",
+                Method = "PATCH",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(firebaseData)
             })
         end
     end)
@@ -238,5 +248,5 @@ local function ServerHop()
     end
 end
 
-print("✅ SCRIPT UPDATED: Alert logic replaced and Airdrop status/timers active.")
+print("✅ SCRIPT UPDATED: Notifications bridged to Firebase and Discord.")
 ServerHop()
