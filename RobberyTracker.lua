@@ -58,8 +58,11 @@ local function getGameTime()
     return string.format("%d:%02d %s", hours, minutes, period)
 end
 
--- [[ ALERT LOGIC ]]
+-----------------------------------------------------------
+-- [[ NEW ALERT LOGIC ]]
+-----------------------------------------------------------
 local function sendAlert(name, status, isDouble, customRegion, extraDetails)
+    -- Unique key to prevent spam
     local alertKey = isDouble and "DoubleBank" or (name .. status .. (customRegion or ""))
     if alreadyNotified[alertKey] then return end
     alreadyNotified[alertKey] = true
@@ -68,14 +71,18 @@ local function sendAlert(name, status, isDouble, customRegion, extraDetails)
     local currentIcon = Icons[name] or "🚨"
     local timeStr = getGameTime()
     
+    -- Base fields included in every alert
     local fields = {
         {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
         {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
         {["name"] = "Game Time", ["value"] = "**" .. timeStr .. "**", ["inline"] = false}
     }
 
+    -- Append extra details (like Airdrop timers or specific bank statuses)
     if extraDetails then
-        for _, detail in pairs(extraDetails) do table.insert(fields, detail) end
+        for _, detail in pairs(extraDetails) do 
+            table.insert(fields, detail) 
+        end
     end
 
     local payload = {
@@ -88,12 +95,23 @@ local function sendAlert(name, status, isDouble, customRegion, extraDetails)
         }}
     }
     
-    -- If it's an airdrop, we want the join link to stay in description but formatted with the location text
+    -- Special description formatting for Airdrops
     if name:find("Airdrop") and customRegion then
         payload.embeds[1].description = customRegion .. "\n\n🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")"
     end
 
-    pcall(function() (http_request or request)({Url = targetUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) end)
+    -- Send request
+    pcall(function()
+        local req = (http_request or request or syn.request)
+        if req then
+            req({
+                Url = targetUrl,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(payload)
+            })
+        end
+    end)
 end
 
 -- [[ ROBBERY DETECTION ]]
@@ -104,7 +122,10 @@ task.spawn(function()
         local cBankStatus = STATUS_NAMES[RobberyState["2"].Value]
 
         if (rBankStatus == "Open" or rBankStatus == "In Robbery") and (cBankStatus == "Open" or cBankStatus == "In Robbery") then
-            sendAlert("Rising Bank", "Double Bank Active", true)
+            sendAlert("Rising Bank", "Double Bank Active", true, nil, {
+                {["name"] = "Rising Bank", ["value"] = "**" .. rBankStatus .. "**", ["inline"] = true},
+                {["name"] = "Crater Bank", ["value"] = "**" .. cBankStatus .. "**", ["inline"] = true}
+            })
         end
 
         for id, name in pairs(ROBBERY_NAMES) do
@@ -145,8 +166,27 @@ task.spawn(function()
                     elseif r > 140 and g < 60 and b < 60 then colorName = "Red" end
                 end
                 
+                local dropStatus = "Unopened"
+                local timerText = ""
+                local label = drop:FindFirstChild("Countdown") and drop.Countdown:FindFirstChild("Billboard") and drop.Countdown.Billboard:FindFirstChild("TextLabel")
+                
+                if label then
+                    local currentVal = label.Text
+                    if currentVal ~= "30" and currentVal ~= "" then
+                        dropStatus = "In Progress"
+                        timerText = currentVal .. " seconds"
+                    end
+                end
+
                 local dropID = colorName .. " Airdrop"
-                sendAlert(dropID, "FOUND!", false, colorName .. " Airdrop found in " .. region .. "!")
+                local extra = {
+                    {["name"] = "Airdrop State", ["value"] = "**" .. dropStatus .. "**", ["inline"] = true}
+                }
+                if dropStatus == "In Progress" then
+                    table.insert(extra, {["name"] = "Timer", ["value"] = "**" .. timerText .. "**", ["inline"] = true})
+                end
+
+                sendAlert(dropID, "FOUND!", false, colorName .. " Airdrop found in " .. region .. "!", extra)
                 alreadyNotified[drop] = true
             elseif not drop then
                 for k, v in pairs(alreadyNotified) do
@@ -198,5 +238,5 @@ local function ServerHop()
     end
 end
 
-print("✅ SCRIPT UPDATED: Fixed Airdrop Text Grammar and Titles.")
+print("✅ SCRIPT UPDATED: Alert logic replaced and Airdrop status/timers active.")
 ServerHop()
