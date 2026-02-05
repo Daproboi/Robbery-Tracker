@@ -3,10 +3,11 @@ repeat task.wait() until game:IsLoaded()
 -- [[ CONFIGURATION ]]
 local FIREBASE_BASE_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/robberies/"
 local MY_WEBSITE_URL = "https://daproboi.github.io/Robbery-Tracker-Website/"
-local HOP_DELAY = 12
-local MAX_PLAYERS = 22 
+local STATUS_WEBHOOK = "https://discord.com/api/webhooks/1469084809031843875/wmbotGFMyQaQUG6wl8yz7DwxMnZ4MM9QzeFT-buJfVKBmotkYZPPvVDpS1g3FFtY7S_B"
+local HOP_DELAY = 8 
+local MAX_PLAYERS = 22
 
--- [[ WEBHOOK LINKS ]]
+-- [[ YOUR WEBHOOK LINKS ]]
 local Webhooks = {
     ["Rising Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
     ["Crater Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
@@ -19,6 +20,21 @@ local Webhooks = {
     ["Airdrop"] = "https://discord.com/api/webhooks/1464672331291955305/Kc_1Q8qxIIb8qVvn_8bmBj1vjjYa9IpNX2ZWXdLnKXoN4ibxxIlwyeF0GPs3MI0jotwD",
     ["Power Plant"] = "https://discord.com/api/webhooks/1464711922191695913/sZSMxS9pE58uwCvidx3MkEoTzJ73O3c0AatUSG8WsVrfxYkB44bm42zNHXxvJ4s9oYS9",
     ["Bank Truck"] = "https://discord.com/api/webhooks/1467485604777558194/vQ49xOndXG2_FQd-MEq5YhVwd_ERPvS0RIwe0TcVJP9Cg5_2LO8IX5Qvyqp69KarLAoG"
+}
+
+-- [[ FRIEND'S WEBHOOK LINKS ]]
+local FriendWebhooks = {
+    ["Rising Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
+    ["Crater Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
+    ["Jewelry Store"] = "https://discord.com/api/webhooks/1469088053678309397/MkapcDFJoCNv6CjhMytjt8SLkWWLsHZc2XoBblEPkpyZbSLcdBSCKeffIyuR3D2y0TDC",
+    ["Museum"] = "https://discord.com/api/webhooks/1469087765768437911/aS6ewt9vsHomv5968zN-23NYtOaCkrDZqQQgM17jB4KSOkU7diAtZsccB6C3Ma1SQTRU",
+    ["Casino"] = "https://discord.com/api/webhooks/1469089230767522029/bPG6k_kLduh6KUEd-XQ2MdYnrrPGRhVVJBaVsWm3GTyNW6G2pqI8opDALSD87SKpUbOZ",
+    ["Cargo Train"] = "https://discord.com/api/webhooks/1469094771367870500/2MQ9ynmoT_cFvvqLqgifSgE3qWwqEPwGajCBlyuDvc2D8RlWdZfHBNhxQJ3UwMcmcFIf",
+    ["Mansion"] = "https://discord.com/api/webhooks/1469088402270982326/bzrvAciscLKkRQji8AJ4X2GXUprrC2wtI1J-qzN0srq3DK7KWM9YUXi0M-AgoboYhkKO",
+    ["Tomb"] = "https://discord.com/api/webhooks/1469088954329469142/kEylUS5fMeJf31u_MDVFniLLAVOmpH94o-ocAXPqNjtS8hYRjkrpw-IA2FwIy8BcC4C5",
+    ["Airdrop"] = "https://discord.com/api/webhooks/1469089100207358163/i1J_frXKzYmHWBDzlNrx8MdJp0XFh54ymrXRG6O0YthfSmW2jqpvTGe_uRsz0w3fQpDW",
+    ["Power Plant"] = "https://discord.com/api/webhooks/1469088764654784645/yvhR9e6WwYtHy502QZZFY9N72SRcCcWylVbTIYJqBNE9d3j9SXW_MOQ8YN_LVqEESTcw",
+    ["Bank Truck"] = "https://discord.com/api/webhooks/1469088593409740932/mk6IYGMK9mKzkmFn88FEIslGO6jnlBW8b9K7xRJWPdwE_5CrdOGKTeAazGAPWZTSJepV"
 }
 
 -- [[ MAPPINGS ]]
@@ -36,19 +52,18 @@ local Icons = {
 }
 
 -- [[ SERVICES ]]
-local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer or Players:GetService("Players").LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 local alreadyNotified = {}
 if not _G.ServerBlacklist then _G.ServerBlacklist = {} end
 
--- [[ HELPER: FORMAT GAME TIME ]]
 local function getGameTime()
     local decimalTime = Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0
     local hours = math.floor(decimalTime)
@@ -59,23 +74,82 @@ local function getGameTime()
 end
 
 -----------------------------------------------------------
--- [[ UPDATED ALERT LOGIC (DISCORD + FIREBASE) ]]
+-- [[ BOT STATUS / HEARTBEAT LOGIC ]]
+-----------------------------------------------------------
+local function SendBotHeartbeat()
+    local botName = LocalPlayer.Name
+    local jobId = game.JobId
+    local playerCount = #Players:GetPlayers()
+    
+    local discordPayload = {
+        ["username"] = "Bot Monitor",
+        ["avatar_url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..LocalPlayer.UserId.."&width=420&height=420&format=png",
+        ["embeds"] = {{
+            ["title"] = "🟢 Bot Active: " .. botName,
+            ["color"] = 3066993,
+            ["fields"] = {
+                {["name"] = "Server JobId", ["value"] = "```" .. jobId .. "```", ["inline"] = false},
+                {["name"] = "Players", ["value"] = playerCount .. " / 30", ["inline"] = true},
+                {["name"] = "Avg Hop Time", ["value"] = HOP_DELAY .. "s", ["inline"] = true}
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+
+    local firebaseData = {
+        ["AverageLogTime"] = HOP_DELAY,
+        ["LatestJobId"] = jobId,
+        ["LastUpdated"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }
+
+    pcall(function()
+        local req = (http_request or request or syn.request)
+        if req then
+            -- Log to Discord Status Channel
+            if STATUS_WEBHOOK ~= "YOUR_STATUS_WEBHOOK_HERE" then
+                req({
+                    Url = STATUS_WEBHOOK,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode(discordPayload)
+                })
+            end
+            
+            -- Log to Firebase Statuses Folder
+            req({
+                Url = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/Statuses/" .. botName .. ".json",
+                Method = "PATCH",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(firebaseData)
+            })
+        end
+    end)
+end
+
+-----------------------------------------------------------
+-- [[ ALERT LOGIC ]]
 -----------------------------------------------------------
 local function sendAlert(name, status, isDouble, customRegion, extraDetails)
     local alertKey = isDouble and "DoubleBank" or (name .. status .. (customRegion or ""))
     if alreadyNotified[alertKey] then return end
     alreadyNotified[alertKey] = true
 
-    local targetUrl = Webhooks[name] or Webhooks["Airdrop"]
+    local myUrl = Webhooks[name] or Webhooks["Airdrop"]
+    local friendUrl = FriendWebhooks[name] or FriendWebhooks["Airdrop"]
+    
     local currentIcon = Icons[name] or "🚨"
     local timeStr = getGameTime()
+    local JobId = game.JobId
     
-    -- 1. DISCORD PAYLOAD
     local fields = {
         {["name"] = "Status", ["value"] = "**" .. status .. "**", ["inline"] = true},
         {["name"] = "Players", ["value"] = "**" .. #Players:GetPlayers() .. " / 30**", ["inline"] = true},
         {["name"] = "Game Time", ["value"] = "**" .. timeStr .. "**", ["inline"] = false}
     }
+
+    if customRegion and customRegion ~= "" then
+        table.insert(fields, {["name"] = "Location", ["value"] = "**" .. customRegion .. "**", ["inline"] = true})
+    end
 
     if extraDetails then
         for _, detail in pairs(extraDetails) do table.insert(fields, detail) end
@@ -85,37 +159,33 @@ local function sendAlert(name, status, isDouble, customRegion, extraDetails)
         ["content"] = isDouble and "🚨 💰💰 **DOUBLE BANK ALERT**" or (currentIcon .. " **" .. name:upper() .. "**"),
         ["embeds"] = {{
             ["title"] = isDouble and "Both Banks are Active!" or (currentIcon .. " " .. name .. " is " .. status .. "!"),
-            ["description"] = customRegion or ("🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. game.JobId .. ")"),
+            ["description"] = "🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. JobId .. ")",
             ["color"] = isDouble and 16776960 or (status == "Open" and 65280 or 16744192),
             ["fields"] = fields
         }}
     }
 
-    -- 2. FIREBASE PAYLOAD (For the Website)
     local firebaseData = {
         ["name"] = name,
         ["status"] = status,
         ["isDouble"] = isDouble or false,
-        ["jobId"] = game.JobId,
+        ["jobId"] = JobId,
         ["players"] = #Players:GetPlayers(),
-        ["lastUpdated"] = os.time()
+        ["lastUpdated"] = os.time(),
+        ["region"] = customRegion or ""
     }
 
     pcall(function()
         local req = (http_request or request or syn.request)
         if req then
-            -- Send to Discord
+            local encodedPayload = HttpService:JSONEncode(payload)
+            req({Url = myUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = encodedPayload})
+            if friendUrl and friendUrl ~= "FRIEND_LINK_HERE" then
+                req({Url = friendUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = encodedPayload})
+            end
+            local uniqueKey = JobId .. "_" .. name:gsub("%s+", "")
             req({
-                Url = targetUrl,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(payload)
-            })
-
-            -- Update Website Database
-            local safeName = name:gsub(" ", "_") 
-            req({
-                Url = FIREBASE_BASE_URL .. safeName .. ".json",
+                Url = FIREBASE_BASE_URL .. uniqueKey .. ".json",
                 Method = "PATCH",
                 Headers = {["Content-Type"] = "application/json"},
                 Body = HttpService:JSONEncode(firebaseData)
@@ -142,24 +212,19 @@ task.spawn(function()
             local stateVal = RobberyState:FindFirstChild(id)
             if stateVal then
                 local status = STATUS_NAMES[stateVal.Value]
-                if name == "Power Plant" or name == "Mansion" then
-                    if status == "Open" then sendAlert(name, status, false) end
-                else
-                    if status == "Open" or status == "In Robbery" then sendAlert(name, status, false) end
-                end
+                if status == "Open" or status == "In Robbery" then sendAlert(name, status, false) end
             end
         end
-        task.wait(1)
+        task.wait(2)
     end
 end)
 
 -- [[ DRONE AIRDROP SCANNER ]]
 task.spawn(function()
-    local HOVER_HEIGHT = 120 
-    local WIDE_RADIUS = 1200 
+    local HOVER_HEIGHT, WIDE_RADIUS = 120, 1200 
     local MISSIONS = {
-        {Name = "Dunes", Start = Vector3.new(649, HOVER_HEIGHT, 740), End = Vector3.new(492, HOVER_HEIGHT, -905), HoverTime = 4.0},
-        {Name = "Cactus Valley", Start = Vector3.new(2103, HOVER_HEIGHT, -4081), End = Vector3.new(-1469, HOVER_HEIGHT, -4337), HoverTime = 6.0}
+        {Name = "Dunes", Start = Vector3.new(649, HOVER_HEIGHT, 740), End = Vector3.new(492, HOVER_HEIGHT, -905), HoverTime = 2.0},
+        {Name = "Cactus Valley", Start = Vector3.new(2103, HOVER_HEIGHT, -4081), End = Vector3.new(-1469, HOVER_HEIGHT, -4337), HoverTime = 3.0}
     }
 
     local function droneScan(region)
@@ -175,33 +240,8 @@ task.spawn(function()
                     elseif r > 140 and g > 90 and g < 110 then colorName = "Brown"
                     elseif r > 140 and g < 60 and b < 60 then colorName = "Red" end
                 end
-                
-                local dropStatus = "Unopened"
-                local timerText = ""
-                local label = drop:FindFirstChild("Countdown") and drop.Countdown:FindFirstChild("Billboard") and drop.Countdown.Billboard:FindFirstChild("TextLabel")
-                
-                if label then
-                    local currentVal = label.Text
-                    if currentVal ~= "30" and currentVal ~= "" then
-                        dropStatus = "In Progress"
-                        timerText = currentVal .. " seconds"
-                    end
-                end
-
-                local dropID = colorName .. " Airdrop"
-                local extra = {
-                    {["name"] = "Airdrop State", ["value"] = "**" .. dropStatus .. "**", ["inline"] = true}
-                }
-                if dropStatus == "In Progress" then
-                    table.insert(extra, {["name"] = "Timer", ["value"] = "**" .. timerText .. "**", ["inline"] = true})
-                end
-
-                sendAlert(dropID, "FOUND!", false, colorName .. " Airdrop found in " .. region .. "!", extra)
+                sendAlert(colorName .. " Airdrop", "FOUND!", false, region)
                 alreadyNotified[drop] = true
-            elseif not drop then
-                for k, v in pairs(alreadyNotified) do
-                    if typeof(k) == "Instance" and k.Name == "Drop" then alreadyNotified[k] = nil end
-                end
             end
         end)
     end
@@ -213,16 +253,14 @@ task.spawn(function()
         for _, mission in pairs(MISSIONS) do
             Camera.CFrame = CFrame.new(mission.Start, mission.End)
             LocalPlayer:RequestStreamAroundAsync(mission.Start, WIDE_RADIUS)
-            
             local tweenGoal = {CFrame = CFrame.new(mission.End, mission.End + (mission.End - mission.Start).Unit)}
             local tween = TweenService:Create(Camera, TweenInfo.new(mission.HoverTime, Enum.EasingStyle.Linear), tweenGoal)
             tween:Play()
-            
             local start = tick()
             while (tick() - start) < mission.HoverTime do
                 LocalPlayer:RequestStreamAroundAsync(Camera.CFrame.Position, WIDE_RADIUS)
                 droneScan(mission.Name)
-                task.wait(0.2)
+                task.wait(0.5)
             end
         end
     end
@@ -230,16 +268,24 @@ end)
 
 -- [[ SERVER HOPPER ]]
 local function ServerHop()
+    print("⏳ Logging status and waiting to hop...")
+    SendBotHeartbeat() -- Log bot status RIGHT before waiting to hop
     task.wait(HOP_DELAY)
+    
     while true do
-        local success, response = pcall(function() return game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100") end)
+        local success, response = pcall(function() 
+            return game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100") 
+        end)
+        
         if success then
             local data = HttpService:JSONDecode(response)
             if data and data.data then
                 for _, s in pairs(data.data) do
-                    if s.id ~= game.JobId and s.playing <= MAX_PLAYERS and not _G.ServerBlacklist[s.id] then
+                    if s.id ~= game.JobId and s.playing > 0 and s.playing <= MAX_PLAYERS and not _G.ServerBlacklist[s.id] then
+                        print("🚀 Teleporting to: " .. s.id)
                         _G.ServerBlacklist[s.id] = true 
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+                        pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer) end)
+                        task.wait(0.5)
                     end
                 end
             end
@@ -248,5 +294,5 @@ local function ServerHop()
     end
 end
 
-print("✅ SCRIPT UPDATED: Notifications bridged to Firebase and Discord.")
+print("✅ SCRIPT UPDATED: Bot Heartbeat & Robbery Tracking Active")
 ServerHop()
