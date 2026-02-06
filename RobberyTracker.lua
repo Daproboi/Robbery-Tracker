@@ -215,7 +215,7 @@ task.spawn(function()
                 if status == "Open" or status == "In Robbery" then sendAlert(name, status, false) end
             end
         end
-        task.wait(2)
+        task.wait(0.3)
     end
 end)
 
@@ -285,12 +285,12 @@ local function ServerHop()
                         print("🚀 Teleporting to: " .. s.id)
                         _G.ServerBlacklist[s.id] = true 
                         pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer) end)
-                        task.wait(0.5)
+                        task.wait(0.2)
                     end
                 end
             end
         end
-        task.wait(5)
+        task.wait(1)
     end
 end
 
