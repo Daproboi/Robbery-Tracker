@@ -298,7 +298,7 @@ end)
 task.spawn(function()
     local HOVER_HEIGHT, WIDE_RADIUS = 120, 1200 
     local MISSIONS = {
-        {Name = "Dunes", Start = Vector3.new(649, HOVER_HEIGHT, 740), End = Vector3.new(492, HOVER_HEIGHT, -905), HoverTime = 2.0},
+        {Name = "Dunes", Start = Vector3.new(649, HOVER_HEIGHT, 740), End = Vector3.new(492, HOVER_HEIGHT, -905), HoverTime = 3.0},
         {Name = "Cactus Valley", Start = Vector3.new(2103, HOVER_HEIGHT, -4081), End = Vector3.new(-1469, HOVER_HEIGHT, -4337), HoverTime = 3.0}
     }
 
