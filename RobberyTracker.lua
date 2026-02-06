@@ -2,13 +2,17 @@ repeat task.wait() until game:IsLoaded()
 
 -- [[ CONFIGURATION ]]
 local FIREBASE_BASE_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/robberies/"
+local OCCUPIED_URL = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/OccupiedServers/"
 local MY_WEBSITE_URL = "https://daproboi.github.io/Robbery-Tracker-Website/"
 local STATUS_WEBHOOK = "https://discord.com/api/webhooks/1469084809031843875/wmbotGFMyQaQUG6wl8yz7DwxMnZ4MM9QzeFT-buJfVKBmotkYZPPvVDpS1g3FFtY7S_B"
 local HOP_DELAY = 8 
 local MAX_PLAYERS = 22
+local STALE_TIME = 600 
+local BOUNTY_THRESHOLD = 40000 
 
 -- [[ YOUR WEBHOOK LINKS ]]
 local Webhooks = {
+	["Bounty Alerts"] = "https://discord.com/api/webhooks/1469384993364246792/Jjvn_rTtdah-cGhnWnzW7A_zrl3xC9EBA6Cpd1o1PBmv2k92cwUscTStUxT3zHL0SBgM",
     ["Rising Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
     ["Crater Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
     ["Jewelry Store"] = "https://discord.com/api/webhooks/1464670195896549457/-g95aDBEu9u3pn2M9ow7ChXxRTNyj847ahfWMLdXbnnYVNOVLOiUV5IvfVhWETjDKKFE",
@@ -24,6 +28,7 @@ local Webhooks = {
 
 -- [[ FRIEND'S WEBHOOK LINKS ]]
 local FriendWebhooks = {
+	["Bounty Alerts"] = "https://discord.com/api/webhooks/1469386353354608832/ruKjvd206Kke00L_4WMm3qRlaiDA_APZjAiFeVzhjuxvUUNuLtOyYjse64lEl-orC3K2",
     ["Rising Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
     ["Crater Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
     ["Jewelry Store"] = "https://discord.com/api/webhooks/1469088053678309397/MkapcDFJoCNv6CjhMytjt8SLkWWLsHZc2XoBblEPkpyZbSLcdBSCKeffIyuR3D2y0TDC",
@@ -55,6 +60,7 @@ local Icons = {
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
@@ -71,6 +77,75 @@ local function getGameTime()
     local period = (hours >= 12) and "PM" or "AM"
     hours = (hours > 12) and hours - 12 or (hours == 0 and 12 or hours)
     return string.format("%d:%02d %s", hours, minutes, period)
+end
+
+-----------------------------------------------------------
+-- [[ BOUNTY SNIPER LOGIC ]]
+-----------------------------------------------------------
+local function SendBountyAlert(totalBounty, crims, police)
+    local JobId = game.JobId
+    local payload = {
+        ["content"] = "💰 **LARGE BOUNTY FOUND!**",
+        ["embeds"] = {{
+            ["title"] = "🎯 Bounty Target Located",
+            ["description"] = "🚀 [Join Server via Tracker](" .. MY_WEBSITE_URL .. "?jobid=" .. JobId .. ")",
+            ["color"] = 16766720,
+            ["fields"] = {
+                {["name"] = "Total Bounty", ["value"] = "**$" .. totalBounty .. "**", ["inline"] = false},
+                {["name"] = "Criminals", ["value"] = "**" .. crims .. "**", ["inline"] = true},
+                {["name"] = "Police", ["value"] = "**" .. police .. "**", ["inline"] = true}
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+
+    pcall(function()
+        local req = (http_request or request or syn.request)
+        if req then
+            local encodedPayload = HttpService:JSONEncode(payload)
+            
+            -- Send to your Bounty Webhook
+            req({
+                Url = Webhooks["Bounty Alerts"],
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = encodedPayload
+            })
+            
+            -- Send to friend's Bounty Webhook
+            req({
+                Url = FriendWebhooks["Bounty Alerts"],
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = encodedPayload
+            })
+        end
+    end)
+end
+
+local function CheckServerBounties()
+    local totalBounty = 0
+    local bountyDataObj = ReplicatedStorage:FindFirstChild("BountyData")
+    
+    if bountyDataObj and bountyDataObj:IsA("StringValue") then
+        local success, bountyTable = pcall(function() return HttpService:JSONDecode(bountyDataObj.Value) end)
+        if success and type(bountyTable) == "table" then
+            for _, data in pairs(bountyTable) do totalBounty = totalBounty + (data.Bounty or 0) end
+        end
+    end
+
+    local crimCount, policeCount = 0, 0
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Team then
+            local teamName = player.Team.Name:lower()
+            if teamName:find("crim") or teamName:find("villain") then crimCount = crimCount + 1
+            elseif teamName:find("police") or teamName:find("cop") or teamName:find("officer") then policeCount = policeCount + 1 end
+        end
+    end
+
+    if totalBounty >= BOUNTY_THRESHOLD then
+        SendBountyAlert(totalBounty, crimCount, policeCount)
+    end
 end
 
 -----------------------------------------------------------
@@ -105,7 +180,6 @@ local function SendBotHeartbeat()
     pcall(function()
         local req = (http_request or request or syn.request)
         if req then
-            -- Log to Discord Status Channel
             if STATUS_WEBHOOK ~= "YOUR_STATUS_WEBHOOK_HERE" then
                 req({
                     Url = STATUS_WEBHOOK,
@@ -115,7 +189,6 @@ local function SendBotHeartbeat()
                 })
             end
             
-            -- Log to Firebase Statuses Folder
             req({
                 Url = "https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/Statuses/" .. botName .. ".json",
                 Method = "PATCH",
@@ -197,6 +270,8 @@ end
 -- [[ ROBBERY DETECTION ]]
 task.spawn(function()
     local RobberyState = ReplicatedStorage:WaitForChild("RobberyState")
+    CheckServerBounties() -- Run bounty check immediately on join
+    
     while true do
         local rBankStatus = STATUS_NAMES[RobberyState["1"].Value]
         local cBankStatus = STATUS_NAMES[RobberyState["2"].Value]
@@ -266,11 +341,61 @@ task.spawn(function()
     end
 end)
 
+-- [[ GLOBAL BLACKLIST CHECKER ]]
+local function IsServerOccupied(jobId)
+    local req = (http_request or request or syn.request)
+    if not req then return false end
+    
+    local success, response = pcall(function()
+        return req({Url = OCCUPIED_URL .. jobId .. ".json", Method = "GET"})
+    end)
+    
+    if success and response.Body ~= "null" then
+        local data = HttpService:JSONDecode(response.Body)
+        if data and data.Timestamp then
+            if (os.time() - data.Timestamp) < STALE_TIME then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function ClaimServer(jobId)
+    local req = (http_request or request or syn.request)
+    if not req then return false end
+    
+    local myClaim = {["Bot"] = LocalPlayer.Name, ["Timestamp"] = os.time()}
+    
+    pcall(function()
+        req({
+            Url = OCCUPIED_URL .. jobId .. ".json",
+            Method = "PUT",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(myClaim)
+        })
+    end)
+    
+    task.wait(1.2) 
+    
+    local success, response = pcall(function()
+        return req({Url = OCCUPIED_URL .. jobId .. ".json", Method = "GET"})
+    end)
+    
+    if success then
+        local data = HttpService:JSONDecode(response.Body)
+        if data and data.Bot == LocalPlayer.Name then
+            return true 
+        end
+    end
+    return false
+end
+
 -- [[ SERVER HOPPER ]]
 local function ServerHop()
     print("⏳ Logging status and waiting to hop...")
-    SendBotHeartbeat() -- Log bot status RIGHT before waiting to hop
-    task.wait(HOP_DELAY)
+    SendBotHeartbeat()
+    task.wait(HOP_DELAY + math.random(1, 4)) 
     
     while true do
         local success, response = pcall(function() 
@@ -282,17 +407,25 @@ local function ServerHop()
             if data and data.data then
                 for _, s in pairs(data.data) do
                     if s.id ~= game.JobId and s.playing > 0 and s.playing <= MAX_PLAYERS and not _G.ServerBlacklist[s.id] then
-                        print("🚀 Teleporting to: " .. s.id)
-                        _G.ServerBlacklist[s.id] = true 
-                        pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer) end)
-                        task.wait(0.2)
+                        if not IsServerOccupied(s.id) then
+                            print("🛰️ Attempting to claim: " .. s.id)
+                            
+                            if ClaimServer(s.id) then
+                                print("🚀 Claim Successful! Teleporting...")
+                                _G.ServerBlacklist[s.id] = true 
+                                pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer) end)
+                                task.wait(5) 
+                            else
+                                print("❌ Claim failed (Race lost), trying next server...")
+                            end
+                        end
                     end
                 end
             end
         end
-        task.wait(1)
+        task.wait(2) 
     end
 end
 
-print("✅ SCRIPT UPDATED: Bot Heartbeat & Robbery Tracking Active")
+print("✅ SCRIPT UPDATED: Bounty Sniper & Heartbeat Active")
 ServerHop()
