@@ -16,6 +16,7 @@ local Webhooks = {
     ["Museum"] = "https://discord.com/api/webhooks/1464671504435515454/G5DlXxy_u9IofQ_iyfCKlQGB_Q1SqG18Gi1XJlZppB_e4eqwXePUmbS8palWk1utsAgT",
     ["Casino"] = "https://discord.com/api/webhooks/1464671652343316542/4rbjQ-ckC-N-lR29ScuXO-mas98ZH_6R-hBlv_mVhSAS0nZrvocxMM2LyptaxXzL5PxT",
     ["Cargo Train"] = "https://discord.com/api/webhooks/1464671819499044930/dOp2Riuc9u_4KviKFAGITitz5Zs3sbVSkHoY8CUzSoeOaLJZ-8GTvACExqKGmKrlKmwN",
+    ["Cargo Plane"] = "https://discord.com/api/webhooks/1471959724651188378/wbqr-86dC3XfH8bTZf0Mc481ipGsB3KFllK4jVpr3z6q1U3J4lcWv8qYww8uX3Y49lj1", -- Plane uses Train webhook or its own? Added key just in case.
     ["Mansion"] = "https://discord.com/api/webhooks/1464672060159561885/dIXoAqZzJal-MhsM2KgmKTOvvTMI50IT4bv8elLSrfPlSE1ovHQrRm3xk4MbInTqf0BV",
     ["Tomb"] = "https://discord.com/api/webhooks/1464672202933796987/091LsMHRz2GUL7ymQ_RDU0jV4Xi87k6YnDT0heXmpAUMh5g0Su15ZCgbdObZRxucmX3b",
     ["Airdrop"] = "https://discord.com/api/webhooks/1464672331291955305/Kc_1Q8qxIIb8qVvn_8bmBj1vjjYa9IpNX2ZWXdLnKXoN4ibxxIlwyeF0GPs3MI0jotwD",
@@ -32,31 +33,45 @@ local FriendWebhooks = {
     ["Museum"] = "https://discord.com/api/webhooks/1469087765768437911/aS6ewt9vsHomv5968zN-23NYtOaCkrDZqQQgM17jB4KSOkU7diAtZsccB6C3Ma1SQTRU",
     ["Casino"] = "https://discord.com/api/webhooks/1469089230767522029/bPG6k_kLduh6KUEd-XQ2MdYnrrPGRhVVJBaVsWm3GTyNW6G2pqI8opDALSD87SKpUbOZ",
     ["Cargo Train"] = "https://discord.com/api/webhooks/1469094771367870500/2MQ9ynmoT_cFvvqLqgifSgE3qWwqEPwGajCBlyuDvc2D8RlWdZfHBNhxQJ3UwMcmcFIf",
+    ["Cargo Plane"] = "https://discord.com/api/webhooks/1471960106257092782/A7MjG25yeenqLBP5UtW2-2wLL7ozGocS11VMeG3RU2B-Q2UK-IKUgdXnWrtKN0Rz4kqn",
     ["Mansion"] = "https://discord.com/api/webhooks/1469088402270982326/bzrvAciscLKkRQji8AJ4X2GXUprrC2wtI1J-qzN0srq3DK7KWM9YUXi0M-AgoboYhkKO",
     ["Tomb"] = "https://discord.com/api/webhooks/1469088954329469142/kEylUS5fMeJf31u_MDVFniLLAVOmpH94o-ocAXPqNjtS8hYRjkrpw-IA2FwIy8BcC4C5",
     ["Airdrop"] = "https://discord.com/api/webhooks/1469089100207358163/i1J_frXKzYmHWBDzlNrx8MdJp0XFh54ymrXRG6O0YthfSmW2jqpvTGe_uRsz0w3fQpDW",
     ["Power Plant"] = "https://discord.com/api/webhooks/1469088764654784645/yvhR9e6WwYtHy502QZZFY9N72SRcCcWylVbTIYJqBNE9d3j9SXW_MOQ8YN_LVqEESTcw",
     ["Bank Truck"] = "https://discord.com/api/webhooks/1469088593409740932/mk6IYGMK9mKzkmFn88FEIslGO6jnlBW8b9K7xRJWPdwE_5CrdOGKTeAazGAPWZTSJepV"
 }
-local ROBBERY_NAMES = {["1"]="Rising Bank", ["2"]="Crater Bank", ["3"]="Jewelry Store", ["4"]="Museum", ["5"]="Power Plant", ["7"]="Cargo Train", ["12"]="Bank Truck", ["14"]="Tomb", ["15"]="Casino", ["16"]="Mansion"}
+local ROBBERY_NAMES = {["1"]="Rising Bank", ["2"]="Crater Bank", ["3"]="Jewelry Store", ["4"]="Museum", ["5"]="Power Plant", ["7"]="Cargo Train", ["9"]="Cargo Plane", ["12"]="Bank Truck", ["14"]="Tomb", ["15"]="Casino", ["16"]="Mansion"}
 local STATUS_NAMES = {[1]="Open", [2]="In Robbery", [3]="Closed"}
-local Icons = {["Jewelry Store"]="💎", ["Power Plant"]="⚡", ["Museum"]="🏛️", ["Rising Bank"]="💰", ["Crater Bank"]="🏦", ["Casino"]="🎰", ["Mansion"]="🏰", ["Tomb"]="⚰️", ["Cargo Train"]="🚂", ["Airdrop"]="📦", ["Bank Truck"]="🚛", ["Blue Airdrop"]="🔵", ["Brown Airdrop"]="🟤", ["Red Airdrop"]="🔴", ["Bounty"]="💰"}
+local Icons = {["Jewelry Store"]="💎", ["Power Plant"]="⚡", ["Museum"]="🏛️", ["Rising Bank"]="💰", ["Crater Bank"]="🏦", ["Casino"]="🎰", ["Mansion"]="🏰", ["Tomb"]="⚰️", ["Cargo Train"]="🚂", ["Cargo Plane"]="✈️", ["Airdrop"]="📦", ["Bank Truck"]="🚛", ["Blue Airdrop"]="🔵", ["Brown Airdrop"]="🟤", ["Red Airdrop"]="🔴", ["Bounty"]="💰"}
 local HttpService, ReplicatedStorage, Players, TeleportService, Workspace, TweenService = game:GetService("HttpService"), game:GetService("ReplicatedStorage"), game:GetService("Players"), game:GetService("TeleportService"), game:GetService("Workspace"), game:GetService("TweenService")
 local LocalPlayer, Camera, alreadyNotified = Players.LocalPlayer, Workspace.CurrentCamera, {}
 if not _G.ServerBlacklist then _G.ServerBlacklist = {} end
 local function getGameTime() local t = Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0; local h, m = math.floor(t), math.floor((t - math.floor(t)) * 60); return string.format("%d:%02d %s", (h > 12 and h - 12 or (h == 0 and 12 or h)), m, h >= 12 and "PM" or "AM") end
 local function getDecimalTime() return Workspace:FindFirstChild("Time") and Workspace.Time.Value or 0 end
-local function getGridImage(pos, isTrain)
+local function getGridImage(pos, isTrain, isPlane)
     if not pos then return nil end
     local minX, maxX, minZ, maxZ, offsetX, offsetZ = -2665, 3000, -6084, 3264, 0, 0
     if isTrain then offsetX = -500 end
     local adjX, adjZ = pos.X + offsetX, pos.Z + offsetZ
     local normX, normZ = (adjX - minX) / (maxX - minX), (adjZ - minZ) / (maxZ - minZ)
     local col, row = math.clamp(math.ceil(normX * 7), 1, 7), math.clamp(math.ceil(normZ * 8), 1, 8)
-    local rowChar, gridID = string.char(64 + row), string.char(64 + row) .. col
+    local gridID = string.char(64 + row) .. col
+    
     if isTrain then
         if gridID == "B3" then gridID = "B4" elseif gridID == "B6" then gridID = "C5" end
         if not ({["D6"]=1, ["B4"]=1, ["A4"]=1, ["E5"]=1, ["F5"]=1, ["B5"]=1, ["C6"]=1, ["C5"]=1, ["A3"]=1, ["D5"]=1, ["F4"]=1, ["G4"]=1, ["G5"]=1, ["B3"]=1, ["B6"]=1})[gridID] then return nil end
+    end
+    if isPlane then
+        -- Plane Logic: E6, F6, F2, F1, G1 always allowed. F5, F4, F3 only if Height < 400.
+        local always = {["E6"]=1, ["F6"]=1, ["F2"]=1, ["F1"]=1, ["G1"]=1}
+        local conditional = {["F5"]=1, ["F4"]=1, ["F3"]=1}
+        if always[gridID] then
+            -- Allowed
+        elseif conditional[gridID] then
+            if pos.Y > 400 then return nil end -- Block if too high
+        else
+            return nil -- Block everything else
+        end
     end
     return MAP_IMAGE_BASE .. gridID .. ".png"
 end
@@ -130,7 +145,7 @@ local function SendBotHeartbeat(realTime)
         req({Url="https://robbery-tracker-d43c5-default-rtdb.firebaseio.com/Statuses/"..botName..".json", Method="PATCH", Headers={["Content-Type"]="application/json"}, Body=HttpService:JSONEncode({["AverageLogTime"]=HOP_DELAY, ["LatestJobId"]=jobId, ["LastUpdated"]=os.date("!%Y-%m-%dT%H:%M:%SZ")})})
     end
 end
-local function sendAlert(name, status, isDouble, region, extra, mapPos, isTrain)
+local function sendAlert(name, status, isDouble, region, extra, mapPos, isTrain, isPlane)
     local key = isDouble and "DoubleBank" or (name..status..(region or ""))
     if alreadyNotified[key] then return end
     alreadyNotified[key] = true
@@ -138,7 +153,7 @@ local function sendAlert(name, status, isDouble, region, extra, mapPos, isTrain)
     local fields = {{["name"]="Status", ["value"]="**"..status.."**", ["inline"]=true}, {["name"]="Players", ["value"]="**"..#Players:GetPlayers().." / 30**", ["inline"]=true}, {["name"]="Game Time", ["value"]="**"..getGameTime().."**", ["inline"]=false}}
     if region and region ~= "" then table.insert(fields, {["name"]="Location", ["value"]="**"..region.."**", ["inline"]=true}) end
     if extra then for _, d in pairs(extra) do table.insert(fields, d) end end
-    local mapUrl = nil; if mapPos then mapUrl = getGridImage(mapPos, isTrain); if isTrain and not mapUrl then return end end
+    local mapUrl = nil; if mapPos then mapUrl = getGridImage(mapPos, isTrain, isPlane); if (isTrain or isPlane) and not mapUrl then return end end
     local payload = {["content"]=isDouble and "🚨 💰💰 **DOUBLE BANK ALERT**" or (icon.." **"..name:upper().."**"), ["embeds"]={{["title"]=isDouble and "Both Banks are Active!" or (icon.." "..name.." is "..status.."!"), ["description"]="🚀 [Join Server via Tracker]("..MY_WEBSITE_URL.."?jobid="..JobId..")", ["color"]=isDouble and 16776960 or (status == "Open" and 65280 or 16744192), ["fields"]=fields, ["image"]=mapUrl and {["url"]=mapUrl} or nil}}}
     local req = (http_request or request or syn.request)
     if req then local e=HttpService:JSONEncode(payload); req({Url=myUrl, Method="POST", Headers={["Content-Type"]="application/json"}, Body=e}); if frUrl and frUrl~="FRIEND_LINK_HERE" then req({Url=frUrl, Method="POST", Headers={["Content-Type"]="application/json"}, Body=e}) end; req({Url=FIREBASE_BASE_URL..JobId.."_"..name:gsub("%s+", "")..".json", Method="PATCH", Headers={["Content-Type"]="application/json"}, Body=HttpService:JSONEncode({["name"]=name, ["status"]=status, ["isDouble"]=isDouble or false, ["jobId"]=JobId, ["players"]=#Players:GetPlayers(), ["lastUpdated"]=os.time(), ["region"]=region or ""})}) end
@@ -158,7 +173,7 @@ task.spawn(function()
                 if valid and (st == "Open" or st == "In Robbery") then
                     local keyCheck = name..st
                     if not alreadyNotified[keyCheck] then
-                        local ex, pos, isTrain = {}, nil, false
+                        local ex, pos, isTrain, isPlane = {}, nil, false, false
                         if name == "Casino" then
                             local tries = 0
                             repeat
@@ -179,8 +194,18 @@ task.spawn(function()
                                 if tf then for _, car in pairs(tf:GetChildren()) do if car.Name:find("BoxCar") then if car:IsA("Model") then pos=car:GetPivot().Position else pos=car.Position end; break end end end
                                 if not pos then tries=tries+1; task.wait(0.5) else break end
                             until tries >= 20
+                        elseif name == "Cargo Plane" then
+                            isPlane = true
+                            if st == "Open" then -- Only track plane if Open
+                                local tries = 0
+                                repeat
+                                    local p = Workspace:FindFirstChild("Plane")
+                                    if p then if p:IsA("Model") then pos=p:GetPivot().Position else pos=p.Position end end
+                                    if not pos then tries=tries+1; task.wait(0.5) else break end
+                                until tries >= 20
+                            else valid = false end -- Ignore Plane if not Open
                         end
-                        sendAlert(name, st, false, nil, ex, pos, isTrain)
+                        if valid then sendAlert(name, st, false, nil, ex, pos, isTrain, isPlane) end
                     end
                 end
             end
@@ -207,7 +232,7 @@ task.spawn(function()
                 
                 local dPos = drop.PrimaryPart and drop.PrimaryPart.Position or drop:GetPivot().Position
                 if Camera.CameraType ~= Enum.CameraType.Scriptable then Camera.CameraType = Enum.CameraType.Scriptable end
-                sendAlert(cn.." Airdrop", st, false, nil, ex, dPos, false); alreadyNotified[drop]=true
+                sendAlert(cn.." Airdrop", st, false, nil, ex, dPos, false, false); alreadyNotified[drop]=true
             end
         end)
     end
