@@ -8,7 +8,7 @@ local HOP_DELAY, MAX_PLAYERS, STALE_TIME, BOUNTY_THRESHOLD = 8, 22, 600, 40000
 
 local Webhooks = {
     ["Status"] = "https://discord.com/api/webhooks/1469084809031843875/wmbotGFMyQaQUG6wl8yz7DwxMnZ4MM9QzeFT-buJfVKBmotkYZPPvVDpS1g3FFtY7S_B",
-    ["High Bounty Player"] = "https://discord.com/api/webhooks/1471582041173659688/TdhJq-fjU_fEU7k020ddiQHT0xiJOn9CNEnjMq8-qtmK7pa-xYGPV8VY5AtRiZftJ2nI",
+    ["High Value Player"] = "https://discord.com/api/webhooks/1471582041173659688/TdhJq-fjU_fEU7k020ddiQHT0xiJOn9CNEnjMq8-qtmK7pa-xYGPV8VY5AtRiZftJ2nI",
     ["Bounty Alerts"] = "https://discord.com/api/webhooks/1469384993364246792/Jjvn_rTtdah-cGhnWnzW7A_zrl3xC9EBA6Cpd1o1PBmv2k92cwUscTStUxT3zHL0SBgM",
     ["Rising Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
     ["Crater Bank"] = "https://discord.com/api/webhooks/1464670766841860126/PpoBgXPlGA4J9pdLCRJEUr9PAAkLxvi5SPbArARwlol_Vu9Dkmu6hLAfrf0mlEAvMGJH",
@@ -24,7 +24,7 @@ local Webhooks = {
 }
 local FriendWebhooks = {
     ["Status"] = "https://discord.com/api/webhooks/1471593455279931425/wlVkvakvDBp5jC9SQJphwi8_bqMOuF_SZDS8Hbb1MG_544OLVbwGB54cRRcFEAD5Epn4",
-    ["High Bounty Player"] = "https://discord.com/api/webhooks/1471582198716043389/JdZMohcSOoWbjGdb2GdtGTlOU1gzBR567noxx8JJrE6TQ7V6dFOvJUiyAFcTkzS5DZ8I",
+    ["High Value Player"] = "https://discord.com/api/webhooks/1471582198716043389/JdZMohcSOoWbjGdb2GdtGTlOU1gzBR567noxx8JJrE6TQ7V6dFOvJUiyAFcTkzS5DZ8I",
     ["Bounty Alerts"] = "https://discord.com/api/webhooks/1469386353354608832/ruKjvd206Kke00L_4WMm3qRlaiDA_APZjAiFeVzhjuxvUUNuLtOyYjse64lEl-orC3K2",
     ["Rising Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
     ["Crater Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
