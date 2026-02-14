@@ -1,4 +1,33 @@
 repeat task.wait() until game:IsLoaded()
+
+-- [[ 0. POTATO MODE OPTIMIZER ]] --
+pcall(function()
+    local lighting = game:GetService("Lighting")
+    lighting.GlobalShadows = false
+    lighting.FogEnd = 9e9
+    lighting.Brightness = 0
+    settings().Rendering.QualityLevel = "Level01"
+    for _, v in pairs(lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then v:Destroy() end
+    end
+    for _, v in pairs(game:GetService("Workspace"):GetDescendants()) do
+        if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+            v.Material = Enum.Material.SmoothPlastic
+            v.Reflectance = 0
+            v.CastShadow = false
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = false
+        end
+    end
+    game:GetService("Workspace").Terrain.WaterWaveSize = 0
+    game:GetService("Workspace").Terrain.WaterWaveSpeed = 0
+    game:GetService("Workspace").Terrain.WaterReflectance = 0
+    game:GetService("Workspace").Terrain.WaterTransparency = 0
+    print("🥔 Potato Mode Enabled: MAX FPS")
+end)
+
 -- [[ 1. HIDE TEAM UI ]] --
 pcall(function() local pg=game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"); for _,g in pairs(pg:GetChildren()) do if g.Name:find("Team") or g.Name:find("Intro") then g:Destroy() end end end)
 
@@ -26,6 +55,7 @@ local Webhooks = {
 local FriendWebhooks = {
     ["Status"] = "https://discord.com/api/webhooks/1471593455279931425/wlVkvakvDBp5jC9SQJphwi8_bqMOuF_SZDS8Hbb1MG_544OLVbwGB54cRRcFEAD5Epn4",
     ["High Value Player"] = "https://discord.com/api/webhooks/1471582198716043389/JdZMohcSOoWbjGdb2GdtGTlOU1gzBR567noxx8JJrE6TQ7V6dFOvJUiyAFcTkzS5DZ8I",
+    ["Cargo Plane"] = "https://discord.com/api/webhooks/1471960106257092782/A7MjG25yeenqLBP5UtW2-2wLL7ozGocS11VMeG3RU2B-Q2UK-IKUgdXnWrtKN0Rz4kqn",
     ["Bounty Alerts"] = "https://discord.com/api/webhooks/1469386353354608832/ruKjvd206Kke00L_4WMm3qRlaiDA_APZjAiFeVzhjuxvUUNuLtOyYjse64lEl-orC3K2",
     ["Rising Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
     ["Crater Bank"] = "https://discord.com/api/webhooks/1469088176751509610/dd1a4r97kx1dKDhXzm0oiTluAIf165ihkf4rwhkrhS-ZIgentEl-ldldX_LA-hWzRAmf",
@@ -33,7 +63,6 @@ local FriendWebhooks = {
     ["Museum"] = "https://discord.com/api/webhooks/1469087765768437911/aS6ewt9vsHomv5968zN-23NYtOaCkrDZqQQgM17jB4KSOkU7diAtZsccB6C3Ma1SQTRU",
     ["Casino"] = "https://discord.com/api/webhooks/1469089230767522029/bPG6k_kLduh6KUEd-XQ2MdYnrrPGRhVVJBaVsWm3GTyNW6G2pqI8opDALSD87SKpUbOZ",
     ["Cargo Train"] = "https://discord.com/api/webhooks/1469094771367870500/2MQ9ynmoT_cFvvqLqgifSgE3qWwqEPwGajCBlyuDvc2D8RlWdZfHBNhxQJ3UwMcmcFIf",
-    ["Cargo Plane"] = "https://discord.com/api/webhooks/1471960106257092782/A7MjG25yeenqLBP5UtW2-2wLL7ozGocS11VMeG3RU2B-Q2UK-IKUgdXnWrtKN0Rz4kqn",
     ["Mansion"] = "https://discord.com/api/webhooks/1469088402270982326/bzrvAciscLKkRQji8AJ4X2GXUprrC2wtI1J-qzN0srq3DK7KWM9YUXi0M-AgoboYhkKO",
     ["Tomb"] = "https://discord.com/api/webhooks/1469088954329469142/kEylUS5fMeJf31u_MDVFniLLAVOmpH94o-ocAXPqNjtS8hYRjkrpw-IA2FwIy8BcC4C5",
     ["Airdrop"] = "https://discord.com/api/webhooks/1469089100207358163/i1J_frXKzYmHWBDzlNrx8MdJp0XFh54ymrXRG6O0YthfSmW2jqpvTGe_uRsz0w3fQpDW",
@@ -61,7 +90,7 @@ local function getGridImage(pos, isTrain, isPlane, planeObj)
         if not ({["D6"]=1, ["B4"]=1, ["A4"]=1, ["E5"]=1, ["F5"]=1, ["B5"]=1, ["C6"]=1, ["C5"]=1, ["A3"]=1, ["D5"]=1, ["F4"]=1, ["G4"]=1, ["G5"]=1, ["B3"]=1, ["B6"]=1})[gridID] then return nil end
     end
     if isPlane then
-        local always = {["E6"]=1, ["E7"]=1, ["F6"]=1, ["F2"]=1, ["F1"]=1, ["G1"]=1}
+        local always = {["E6"]=1, ["F6"]=1, ["F2"]=1, ["F1"]=1, ["G1"]=1}
         local conditional = {["F5"]=1, ["F4"]=1, ["F3"]=1}
         if always[gridID] then
             -- Allow
@@ -272,11 +301,23 @@ local function ServerHop()
             local d = HttpService:JSONDecode(r)
             if d and d.data then
                 for _, srv in pairs(d.data) do
-                    if srv.id ~= game.JobId and srv.playing > 0 and srv.playing <= MAX_PLAYERS and not _G.ServerBlacklist[srv.id] then
+                    local isBlacklisted = false
+                    local val = _G.ServerBlacklist[srv.id]
+                    if val then
+                        if type(val) == "number" then
+                            if (os.time() - val) < 600 then isBlacklisted = true else _G.ServerBlacklist[srv.id] = nil end
+                        else
+                            isBlacklisted = true -- Legacy boolean support
+                        end
+                    end
+                    if srv.id ~= game.JobId and srv.playing > 0 and srv.playing <= MAX_PLAYERS and not isBlacklisted then
                         if not IsServerOccupied(srv.id) then
                             print("🛰️ Attempting to claim: "..srv.id)
                             if ClaimServer(srv.id) then
-                                local timeTaken = os.time() - searchStart; print("🚀 Claim Successful! Time taken: " .. timeTaken .. "s"); SendBotHeartbeat(timeTaken); _G.ServerBlacklist[srv.id] = true; pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer) end); task.wait(5)
+                                local timeTaken = os.time() - searchStart; print("🚀 Claim Successful! Time taken: " .. timeTaken .. "s"); SendBotHeartbeat(timeTaken); 
+                                _G.ServerBlacklist[srv.id] = os.time() -- Save Timestamp
+                                pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer) end); task.wait(5)
+                                return -- Stop looping
                             else print("❌ Claim failed (Race lost), trying next server...") end
                         end
                     end
